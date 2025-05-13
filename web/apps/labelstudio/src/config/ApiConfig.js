@@ -9,6 +9,7 @@ export const API_CONFIG = {
     me: "/current-user/whoami",
 
     // Organization
+    organizations: "/organizations",
     memberships: "/organizations/:pk/memberships",
     userMemberships: "/organizations/:pk/memberships/:userPk",
     inviteLink: "/invite",

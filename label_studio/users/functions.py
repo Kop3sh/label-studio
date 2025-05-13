@@ -54,11 +54,14 @@ def check_avatar(files):
 
     return avatar
 
+def save_user_info(user_instance):
+    """Save user instance to DB and assign to corresponding org"""
 
-def save_user(request, next_page, user_form):
-    """Save user instance to DB"""
-    user = user_form.save()
-    user.username = user.email.split('@')[0]
+    user = user_instance.save()
+    if user is None:
+        user = user_instance
+    
+    user.username = user.email.split()[0]
     user.save()
 
     if Organization.objects.exists():
@@ -68,6 +71,24 @@ def save_user(request, next_page, user_form):
         org = Organization.create_organization(created_by=user, title='Label Studio')
     user.active_organization = org
     user.save(update_fields=['active_organization'])
+    org.save()
+    return user
+
+
+def save_user(request, next_page, user_form):
+    """Save user instance to DB"""
+    # user = user_form.save()
+    # user.username = user.email.split('@')[0]
+    # user.save()
+
+    # if Organization.objects.exists():
+    #     org = Organization.objects.first()
+    #     org.add_user(user)
+    # else:
+    #     org = Organization.create_organization(created_by=user, title='Label Studio')
+    # user.active_organization = org
+    # user.save(update_fields=['active_organization'])
+    user = save_user_info(user_form)
 
     request.advanced_json = {
         'email': user.email,

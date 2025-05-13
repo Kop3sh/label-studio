@@ -18,20 +18,25 @@ export const PeopleList = ({ onSelect, selectedUser, defaultSelected }) => {
 
   console.log({ currentPage, currentPageSize });
 
-  const fetchUsers = useCallback(async (page, pageSize) => {
-    const response = await api.callApi("memberships", {
-      params: {
-        pk: 1,
-        contributed_to_projects: 1,
-        page,
-        page_size: pageSize,
-      },
+    const fetchUsers = useCallback(async (page, pageSize) => {
+    api.callApi("organizations").then(async (orgs) => {
+      const organizationId = orgs[0].id;
+
+      const response = await api.callApi("memberships", {
+        params: {
+          pk: organizationId,
+          contributed_to_projects: 1,
+          page,
+          page_size: pageSize,
+        },
+      });
+
+      if (response.results) {
+        setUsersList(response.results);
+        setTotalItems(response.count);
+      }
     });
 
-    if (response.results) {
-      setUsersList(response.results);
-      setTotalItems(response.count);
-    }
   }, []);
 
   const selectUser = useCallback(
