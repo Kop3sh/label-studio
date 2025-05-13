@@ -1,0 +1,9 @@
+[tools]
+node = "18"
+poetry = "latest"
+python = "3.11"
+
+[env]
+_.file = '.env'
+#BASE_DATA_DIR = "./data"
+
