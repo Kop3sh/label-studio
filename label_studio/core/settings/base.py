@@ -14,6 +14,7 @@ import logging
 import os
 import re
 from datetime import timedelta
+import requests
 
 from django.core.exceptions import ImproperlyConfigured
 
@@ -205,6 +206,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django.contrib.humanize',
+    'mozilla_django_oidc',  # Load after auth
     'drf_yasg',
     'corsheaders',
     'django_extensions',
@@ -250,6 +252,7 @@ MIDDLEWARE = [
     'core.middleware.DatabaseIsLockedRetryMiddleware',
     'core.current_request.ThreadLocalMiddleware',
     'jwt_auth.middleware.JWTAuthenticationMiddleware',
+    'mozilla_django_oidc.middleware.SessionRefresh',
 ]
 
 REST_FRAMEWORK = {
@@ -298,6 +301,7 @@ ALLOWED_HOSTS = get_env_list('ALLOWED_HOSTS', default=['*'])
 AUTH_USER_MODEL = 'users.User'
 AUTHENTICATION_BACKENDS = [
     'rules.permissions.ObjectPermissionBackend',
+    'core.oidc_auth_backend.OIDCAuthBackend',
     'django.contrib.auth.backends.ModelBackend',
 ]
 USE_USERNAME_FOR_LOGIN = False
@@ -453,8 +457,10 @@ CSRF_COOKIE_SAMESITE = get_env('CSRF_COOKIE_SAMESITE', 'Lax')
 CSRF_COOKIE_AGE = int(get_env('CSRF_COOKIE_AGE', 31449600))
 
 
+# Set to False so that OIDC auth works
+# TODO: re-enable it when we have a better solution
 # Inactivity user sessions
-INACTIVITY_SESSION_TIMEOUT_ENABLED = bool(int(get_env('INACTIVITY_SESSION_TIMEOUT_ENABLED', True)))
+INACTIVITY_SESSION_TIMEOUT_ENABLED = bool(int(get_env('INACTIVITY_SESSION_TIMEOUT_ENABLED', False)))
 # The most time a login will last, regardless of activity
 MAX_SESSION_AGE = int(get_env('MAX_SESSION_AGE', timedelta(days=14).total_seconds()))
 # The most time that can elapse between activity with the server before the user is logged out
@@ -845,3 +851,55 @@ RESOLVER_PROXY_GCS_DOWNLOAD_URL = get_env(
 RESOLVER_PROXY_GCS_HTTP_TIMEOUT = int(get_env('RESOLVER_PROXY_GCS_HTTP_TIMEOUT', 5))
 RESOLVER_PROXY_ENABLE_ETAG_CACHE = get_bool_env('RESOLVER_PROXY_ENABLE_ETAG_CACHE', True)
 RESOLVER_PROXY_CACHE_TIMEOUT = int(get_env('RESOLVER_PROXY_CACHE_TIMEOUT', 3600))
+
+def discover_oidc(discovery_url: str) -> dict:
+    """
+    Performs OpenID Connect discovery to retrieve the provider configuration.
+    """
+    response = requests.get(discovery_url)
+    if response.status_code != 200:
+        raise ValueError("Failed to retrieve provider configuration.")
+
+    provider_config = response.json()
+
+    # Extract endpoint URLs from provider configuration
+    return {
+        "authorization_endpoint": provider_config["authorization_endpoint"],
+        "token_endpoint": provider_config["token_endpoint"],
+        "userinfo_endpoint": provider_config["userinfo_endpoint"],
+        "jwks_uri": provider_config["jwks_uri"],
+    }
+
+ZITADEL_PROJECT = get_env('ZITADEL_PROJECT', None)
+# '319964067546557718'
+OIDC_RP_CLIENT_ID = get_env('OIDC_RP_CLIENT_ID', None)
+# '319964067546623254@label_studio'
+OIDC_RP_CLIENT_SECRET = get_env('OIDC_RP_CLIENT_SECRET', None)
+OIDC_OP_BASE_URL = get_env('OIDC_OP_BASE_URL', None)
+# "https://zas.aic.gov.eg"
+OIDC_USE_PKCE = get_env('OIDC_USE_PKCE', None)
+OIDC_PKCE_CODE_CHALLENGE_METHOD = get_env('OIDC_PKCE_CODE_CHALLENGE_METHOD', None)
+
+OIDC_RP_SIGN_ALGO = "RS256"
+OIDC_RP_SCOPES = "openid email phone profile"
+OIDC_OP_DISCOVERY_ENDPOINT = OIDC_OP_BASE_URL + "/.well-known/openid-configuration"
+
+# Discover OpenID Connect endpoints
+discovery_info = discover_oidc(OIDC_OP_DISCOVERY_ENDPOINT)
+OIDC_OP_AUTHORIZATION_ENDPOINT = discovery_info["authorization_endpoint"]
+OIDC_OP_TOKEN_ENDPOINT = discovery_info["token_endpoint"]
+OIDC_OP_USER_ENDPOINT = discovery_info["userinfo_endpoint"]
+OIDC_OP_JWKS_ENDPOINT = discovery_info["jwks_uri"]
+
+
+permClaim = "urn:zitadel:iam:org:project:" + ZITADEL_PROJECT + ":roles"
+
+OIDC_AUTH_REQUEST_EXTRA_PARAMS = {
+    "acr": permClaim
+}
+
+LOGIN_REDIRECT_URL = get_env('LOGIN_REDIRECT_URL', None)
+# "http://localhost:8080/projects/"
+LOGOUT_REDIRECT_URL = get_env('LOGOUT_REDIRECT_URL', None)
+# "http://localhost:8080/"
+# LOGIN_URL = "http://localhost:8080/oidc/authenticate/"

@@ -75,6 +75,7 @@ dependencies = [
     ## HumanSignal repo dependencies :start
     "label-studio-sdk @ https://github.com/HumanSignal/label-studio-sdk/archive/c4ed0b0240c4a5e9f372393f84fdea01abe33141.zip",
     ## HumanSignal repo dependencies :end
+    "mozilla-django-oidc (>=4.0.1,<5.0.0)"
 ]
 
 [project.urls]
