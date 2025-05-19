@@ -145,7 +145,7 @@ export const HomePage: Page = () => {
           </SimpleCard>
         </section>
         <section className="flex flex-col gap-6">
-          <HeidiTips collection="projectSettings" />
+          {/* <HeidiTips collection="projectSettings" /> */}
           <SimpleCard title="Resources" description="Learn, explore and get help" data-testid="resources-card">
             <ul>
               {resources.map((link) => {
